@@ -1,0 +1,10 @@
+name: Publish Document
+title:
+username:
+account: rpubs
+server: rpubs.com
+hostUrl: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/1305219/fa7e62b0248c471d94cb569ec16e18cd
+bundleId: https://api.rpubs.com/api/v1/document/1305219/fa7e62b0248c471d94cb569ec16e18cd
+url: http://rpubs.com/SMart21/1305219
+version: 1

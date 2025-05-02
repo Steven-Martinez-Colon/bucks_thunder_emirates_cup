@@ -29,14 +29,13 @@ load_libraries <- function(packages) {
   cat("All packages are loaded succesfully.\n")
 }
 
-
 # Loading necessary libraries
 load_libraries(c("tidyverse", "lubridate", "stats", "ggplot2", "corrplot", "stringr", "stringi", "class",
                  "tidymodels", "modeldata", "themis", "vip", "baguette", "janitor", "rvest",
                  "yardstick", "gsheet", "caret", "randomForest", "here", "tibble", "dplyr", "ISAR",
                  "tidyr", "mgcv", "teamcolors", "baseballr", "Lahman", "remotes", "ggcorrplot", "broom",
                  "readr", "glmnet", "xgboost", "Matrix", "Metrics", "reshape2", "DMwR2", "smotefamily",
-                 "highcharter", "jpeg", "grid", "gridExtra", "RCurl", "gt"))
+                 "highcharter", "jpeg", "grid", "gridExtra", "RCurl", "gt", "purrr"))
 
 # Load only the necessary functions from 'car'
 library(car, exclude = "select")
@@ -47,7 +46,7 @@ options(warnings = 0)
 
 ```{r Loading Dataset, include=FALSE}
 # Loading Dataset
-df <- read_csv("data/data_mil_okc_121724_shots.csv")
+df <- read_csv("../data/data_mil_okc_121724_shots.csv")
 ```
 
 ```{r Data Cleaning, include=FALSE}
@@ -58,21 +57,42 @@ str(df)
 df <- df %>%
   mutate(across(c(loc_x_passer, loc_y_passer, rimDepth, rimLeftRight, arcAngle), as.numeric))
 
-
-# Changing binary variables to factors
-df <- df %>%
-  mutate(across(where(~ is.numeric(.) && all(na.omit(.) %in% c(0, 1))),
-                as.factor))
-
 # Creating a column for 2-point makes and attempts
 df <- df %>%
   mutate(
     fga2 = ifelse(fga == 1 & fga3 == 0, 1, 0),
     fg2 = ifelse(fg == 1 & fg3 == 0, 1, 0)
     )
+
+# Ensure key binary shot variables are numeric
+df <- df %>%
+  mutate(
+    fga = as.numeric(as.character(fga)),
+    fg = as.numeric(as.character(fg)),
+    fga3 = as.numeric(as.character(fga3)),
+    fg3 = as.numeric(as.character(fg3)),
+    fg2 = as.numeric(as.character(fg2)),
+    fga2 = as.numeric(as.character(fga2))
+  )
 ```
 
-```{r Half court image for shooting chart, include=FALSE}
+
+
+
+
+## Introduction
+
+
+
+## Summary of Game
+
+
+
+## Team Analysis
+
+#### Offensive Analysis
+
+```{r Half court image for shooting chart, echo=FALSE}
 # half court image
 courtImg.URL <- "https://thedatagame.com.au/wp-content/uploads/2016/03/nba_court.jpg"
 court <- rasterGrob(
@@ -82,9 +102,10 @@ court <- rasterGrob(
   )
 ```
 
+The Bucks' three-point efficiency can be traced directly to their ability to generate paint pressure. The shot chart below, which maps made three-pointers and the location of the passes that led to them, shows a clear pattern: Milwaukee consistently attacked the paint and kicked the ball out to open shooters. Many of their three-point makes were assisted from locations inside or near the free throw line, highlighting a successful drive-and-kick strategy.
 
-```{r Three pointers made by each team Shot Chart, include=FALSE}
-# Shot chart for 3 pointers made in the game by each team
+```{r Three pointers made shot chart with passers by each team, echo=FALSE}
+# Shot chart for 3 pointers made with passers by each team
 df %>% 
   filter(fg3 == 1) %>% 
   ggplot() +
@@ -114,80 +135,196 @@ df %>%
   theme_minimal()
 ```
 
+In contrast, Oklahoma City’s passes to made three-pointers came primarily from outside the arc, suggesting a lack of interior penetration. Without forcing defensive rotations, their shooters faced tighter coverage, resulting in lower overall efficiency from deep.
 
-## Introduction
+This pattern is reinforced by the shot density heatmap: Milwaukee generated a high concentration of shots near the rim, while OKC’s shot attempts were more dispersed. The Bucks leveraged their size advantage in the frontcourt, with players like Giannis Antetokounmpo, Brook Lopez, and Bobby Portis consistently establishing deep paint position or attacking off the dribble. This interior presence forced Oklahoma City’s defense to collapse, opening up clean looks for shooters on the perimeter. Milwaukee’s ability to collapse the defense and space the floor simultaneously gave them a decisive edge from beyond the arc.
 
-
-
-## Summary of Game
-
-
-
-## Shot Profile Analysis
-
-
-
-## Key Player Performances
-
-The outcome of the Emirates Cup final was shaped largely by the play of each team’s top scorers. Milwaukee’s stars delivered on expectations. Giannis Antetokounmpo led the Bucks with 20 points on 52.6% shooting, while Damian Lillard added 17 points and knocked down 5 of 10 from three. Both players posted efficient shot profiles and outperformed their expected shot quality.
-
-```{r Getting data for star players, echo=FALSE, include=FALSE}
-# Manually define your key players (adjust names if needed)
-stars <- c("Antetokounmpo, Giannis", "Lillard, Damian",
-           "Gilgeous-Alexander, Shai", "Williams, Jalen")
-
-# Filter and prepare table
-star_table <- df %>%
-  filter(player_nba_shooter %in% stars) %>%
-  group_by(player_nba_shooter, team_nba_off) %>%
-  summarise(
-    FGA = sum(fga, na.rm = TRUE),
-    FGM = sum(fg, na.rm = TRUE),
-    FG_percent = round(FGM / FGA, 3),
-    FG3A = sum(fga3, na.rm = TRUE),
-    FG3M = sum(fg3, na.rm = TRUE),
-    FG3_percent = round(FG3M / FG3A, 3),
-    eFG_percent = round((FGM + 0.5 * FG3M) / FGA, 3),
-    Points = sum(fg2 * 2 + fg3 * 3, na.rm = TRUE),
-    avg_qSQ = round(mean(qSQ, na.rm = TRUE), 3)
-  ) %>%
-  ungroup() %>%
-  rename(
-    Player = player_nba_shooter,
-    Team = team_nba_off,
-    `FG%` = FG_percent,
-    `3PA` = FG3A,
-    `3PM` = FG3M,
-    `3P%` = FG3_percent,
-    `eFG%` = eFG_percent,
-    `qSQ` = avg_qSQ
-  ) %>%
-  arrange(desc(Points))  # or sort however you'd like
+```{r Shot Density heatmap, echo=FALSE, warning=FALSE}
+# Shot Density Heatmap by Team
+df %>%
+  ggplot(aes(x = loc_x, y = loc_y)) +
+  annotation_custom(court, xmin = -25, xmax = 25, ymin = 0, ymax = 47) +
+  stat_density_2d(aes(fill = ..level..), geom = "polygon", alpha = 0.6) +
+  facet_wrap(~ team_nba_off) +
+  scale_fill_viridis_c() +
+  coord_fixed() +
+  labs(title = "Shot Density Heatmap by Team") +
+  theme_minimal()
 ```
 
+The table below quantifies the three-point performance of each team. Milwaukee attempted and made more threes than Oklahoma City, converting at a higher rate (e.g., X.X% vs Y.Y%). In addition, a greater share of Milwaukee’s total shot attempts came from beyond the arc, reinforcing their commitment to spacing and perimeter efficiency. This statistical advantage complements what we observed in the shot chart: the Bucks not only created better looks from three, they also took more of them — and hit them more often.
 
-```{r Star players table, echo=FALSE}
-# Display table using gt
-star_table %>%
+```{r Creating three pointers summary, include=FALSE}
+# Three pointers summary for each team
+three_point_summary <- df %>%
+  group_by(team_nba_off) %>%
+  summarise(
+    `3PA` = sum(fga3, na.rm = TRUE),
+    `3PM` = sum(fg3, na.rm = TRUE),
+    `3P%` = round(`3PM` / `3PA`, 3),
+    Total_Shots = n(),
+    `3PT Share` = round(`3PA` / Total_Shots, 3)
+  ) %>%
+  rename(Team = team_nba_off)
+```
+
+```{r Three pointers table summary, echo=FALSE}
+# Table showing three point summary
+three_point_summary %>%
   gt() %>%
   tab_header(
-    title = md("**Star Player Comparison**"),
-    subtitle = "Shot performance metrics for Bucks and Thunder primary scorers"
+    title = md("**Team Three-Point Shooting Summary**"),
+    subtitle = "Based on made and attempted 3PT field goals"
   ) %>%
-  fmt_percent(columns = c(`FG%`, `3P%`, `eFG%`), decimals = 1) %>%  # ← no qSQ here
-  fmt_number(columns = c(`qSQ`), decimals = 3) %>%  # ← format qSQ as a decimal
-  fmt_number(columns = c(FGA, FGM, `3PA`, Points), decimals = 0) %>%
-  cols_align(align = "center") %>%
-  tab_style(
-    style = cell_text(weight = "bold"),
-    locations = cells_body(columns = Player)
-  ) %>% 
-  tab_source_note(
-    source_note = md("*Point totals reflect only field goals made; free throws are not included.*")
-  )
-
+  fmt_percent(columns = c(`3P%`, `3PT Share`), decimals = 1) %>%
+  fmt_number(columns = c(`3PA`, `3PM`, Total_Shots), decimals = 0) %>%
+  cols_align(align = "center")
 ```
 
+In addition to better spacing and rim pressure, Milwaukee consistently created high-quality catch-and-shoot opportunities, which are typically higher efficiency looks when taken in rhythm. For the Bucks' 59.3% of the field goal attempts were catch-and-shoot, compared to just 44.2% for the Thunder. Also, 73.5% of Milwaukee’s made field goals were assisted, a strong indicator of their ball movement and offensive structure. The table below illustrates this advantage:
+
+```{r Creating summary for assists vs catch and shoot attempts, include=FALSE}
+# Summary of assists and catch and shoot attempts
+assist_cas_summary <- df %>%
+  group_by(team_nba_off) %>%
+  summarise(
+    FGA = sum(fga, na.rm = TRUE),
+    Made_FG = sum(fg, na.rm = TRUE),
+    Assisted_Makes = sum(fg == 1 & assisted == 1, na.rm = TRUE),
+    CatchShoot_Attempts = sum(catchAndShoot == 1, na.rm = TRUE),
+    
+    Assisted_Shot_Pct = round(Assisted_Makes / Made_FG, 3),
+    CatchShoot_Rate = round(CatchShoot_Attempts / FGA, 3)
+  ) %>%
+  rename(Team = team_nba_off)
+```
+
+```{r Table showing assits vs catch and shoot, echo=FALSE}
+# Table showing assists vs catch and shoot
+assist_cas_summary %>%
+  gt() %>%
+  tab_header(
+    title = md("**Assisted Shots and Catch-and-Shoot Rate**"),
+    subtitle = "Team-level comparison"
+  ) %>%
+  fmt_percent(columns = c(`Assisted_Shot_Pct`, `CatchShoot_Rate`), decimals = 1) %>%
+  fmt_number(columns = c(FGA, Made_FG, CatchShoot_Attempts), decimals = 0) %>%
+  cols_label(
+    Assisted_Shot_Pct = "Assisted FG%",
+    CatchShoot_Rate = "Catch-and-Shoot FGA%"
+  ) %>%
+  cols_align(align = "center")
+```
+
+This aligns closely with what’s seen in the 3PT shot chart: Milwaukee often drove into the paint and kicked out to open shooters, many of whom were ready to shoot off the catch. In contrast, Oklahoma City’s offense was more static, resulting in a lower percentage of assisted baskets and fewer catch-and-shoot opportunities. This difference in offensive orchestration was a key factor in the Bucks’ superior shot quality and scoring efficiency.
+
+Beyond shot selection and ball movement, Milwaukee also demonstrated greater control and balance at the point of release. On made field goals, Bucks shooters averaged a movement speed of just 3.01 feet per second, compared to 5.55 feet per second for Thunder players. This speed differential suggests that Milwaukee players were more often set and stationary, capitalizing on catch-and-shoot or structured scoring actions. In contrast, Oklahoma City's scorers were often still in motion, indicating more self-created, off-the-dribble, or contested shots.
+
+The chart below visually highlights the speed differential between made and missed shots for each team. Milwaukee’s made field goals were taken at lower speeds than their misses, while Oklahoma City’s shooters maintained higher movement on both makes and misses — a likely indicator of tougher shot creation conditions.
+
+```{r Bar plot of shooter speed and shot result, echo=FALSE}
+# Shooter speed summary
+speed_summary <- df %>%
+  filter(fga == 1, !is.na(shooterSpeed)) %>%
+  mutate(Shot_Result = ifelse(fg == 1, "Made", "Missed")) %>%
+  group_by(Team = team_nba_off, Shot_Result) %>%
+  summarise(
+    avg_speed = round(mean(shooterSpeed, na.rm = TRUE), 2),
+    shot_count = n(),
+    .groups = "drop"
+  )
+
+# Bar plot of shooter speed and shot result
+highchart() %>%
+  hc_chart(type = "column") %>%
+  hc_title(text = "Average Shooter Speed by Team and Shot Result") %>%
+  hc_xAxis(categories = unique(speed_summary$Team)) %>%
+  hc_yAxis(title = list(text = "Avg. Shooter Speed (ft/s)")) %>%
+  hc_plotOptions(
+    column = list(
+      dataLabels = list(enabled = TRUE),
+      grouping = TRUE,
+      pointPadding = 0.2,
+      borderWidth = 0
+    )
+  ) %>%
+  hc_tooltip(
+    useHTML = TRUE,
+    headerFormat = "<b>{point.name}</b><br>",
+    pointFormat = paste(
+      "Result: {series.name}<br>",
+      "Avg Speed: {point.y} ft/s<br>",
+      "Shots: {point.custom.shots}"
+    )
+  ) %>%
+  hc_add_series(
+    name = "Made",
+    data = pmap(
+      speed_summary %>% filter(Shot_Result == "Made"),
+      function(Team, Shot_Result, avg_speed, shot_count) {
+        list(
+          y = avg_speed,
+          name = Team,
+          custom = list(shots = shot_count)
+        )
+      }
+    ),
+    color = "#2ECC71"
+  ) %>%
+  hc_add_series(
+    name = "Missed",
+    data = pmap(
+      speed_summary %>% filter(Shot_Result == "Missed"),
+      function(Team, Shot_Result, avg_speed, shot_count) {
+        list(
+          y = avg_speed,
+          name = Team,
+          custom = list(shots = shot_count)
+        )
+      }
+    ),
+    color = "#E74C3C"
+  )
+```
+
+The disparity in movement speed — especially on made shots — reinforces a broader theme: Milwaukee’s offense consistently produced in-rhythm opportunities, while Oklahoma City relied more on isolation, improvisation, or rushed possessions. This fundamental difference contributed meaningfully to the Bucks' superior scoring efficiency.
+
+#### Defensive Analysis
+
+At the team level, the difference in defensive execution was pronounced. Milwaukee’s defense held Oklahoma City to just 17.9% shooting on lightly contested shots, despite providing a modest 5.8 feet of space. This inefficiency is further explained by OKC’s high shooter speed (4.18 ft/sec) on these attempts, indicating rushed, off-rhythm looks even without heavy pressure.
+
+```{r Team defensive summary table, echo=FALSE}
+# Creating a table for the team defense
+df %>%
+  group_by(team_nba_def, contestLevel) %>%
+  summarise(
+    count = n(),
+    `fg%` = sum(fg) / sum(fga),
+    fg2 = sum(fg2),
+    fga3 = sum(fga3),
+    fg3 = sum(fg3),
+    avg_defender_dist = mean(closestDefDist),
+    shooterSpeed = mean(shooterSpeed),
+    .groups = "drop"
+  ) %>%
+  rename(`Team on Defense` = team_nba_def) %>%
+  gt() %>%
+  tab_header(
+    title = md("**Defensive Impact by Contest Level**"),
+    subtitle = "FG%, contest distance, and shooter speed vs. each defense"
+  ) %>%
+  fmt_percent(columns = `fg%`, decimals = 1) %>%
+  fmt_number(columns = c(avg_defender_dist, shooterSpeed), decimals = 2) %>%
+  cols_align(align = "center")
+```
+
+In contrast, Oklahoma City allowed Milwaukee to shoot 52.2% on lightly contested shots, with a similar contest distance (5.31 feet) — but Milwaukee’s shooters were moving much more slowly (2.57 ft/sec), pointing to controlled footwork and balance. This contrast illustrates how the Bucks' defensive scheme succeeded not just by contesting shots, but by disrupting timing and decision-making, while OKC’s defense failed to take shooters out of rhythm.
+
+## Player Analysis
+
+#### Star Players Performance
+
+A critical factor in the outcome of the Emirates Cup Final was the difference in shot volume and scoring efficiency between each team’s primary contributors. The distribution of field goal attempts highlights how Milwaukee's offense was balanced across multiple players, while Oklahoma City relied more heavily on a smaller core.
 
 ```{r Creating Player-level shooting summary, include=FALSE}
 # Ensure key binary shot variables are numeric
@@ -279,15 +416,165 @@ highchart() %>%
   )
 ```
 
+This chart shows that while both teams relied on their stars, the Bucks benefitted from a more even shot distribution across their rotation. Giannis Antetokounmpo and Damian Lillard led the team in shot attempts, but were supported by consistent contributions from players like Brook Lopez and Bobby Portis. In contrast, the Thunder relied heavily on Shai Gilgeous-Alexander and Jalen Williams, who combined for over 40% of the team’s total shot attempts.
 
-On the other side, Oklahoma City’s stars struggled to convert. Shai Gilgeous-Alexander and Jalen Williams combined for 44 shot attempts, but shot just 33.3% and 40.0% from the field respectively, totaling 35 points combined. Shai went 2-of-9 from three, while Williams hit only 1-of-4.
+Milwaukee’s stars capitalized on their opportunities. Giannis Antetokounmpo led the Bucks with 20 points on 52.6% shooting, while Damian Lillard added 17 points and knocked down 5 of 10 from three. Both exceeded their expected efficiency based on shot quality (qSQ), turning high-usage into high-value possessions.
 
-Beyond the stars, Milwaukee’s supporting cast provided critical contributions. Brook Lopez and Bobby Portis combined for 20 points on 13 shot attempts, both shooting above 50%. Portis added an efficient interior presence, while Lopez spaced the floor effectively.
+On the other side, Oklahoma City’s stars struggled to convert. Shai Gilgeous-Alexander and Jalen Williams combined for 44 shot attempts, but shot just 33.3% and 40.0% from the field respectively, totaling 35 points combined. Shai went 2-of-9 from three, while Williams hit only 1-of-4. This inefficiency from the team’s primary creators was a key driver of the outcome.
 
-For the Thunder, Gary Trent Jr. and Isaiah Joe had opportunities, but were less efficient. They combined for 18 shot attempts and only 5 made field goals. The Thunder’s role players, like the stars, struggled to convert shot quality into scoring output.
+```{r Getting data for star players, echo=FALSE, include=FALSE}
+# Manually define your key players (adjust names if needed)
+stars <- c("Antetokounmpo, Giannis", "Lillard, Damian",
+           "Gilgeous-Alexander, Shai", "Williams, Jalen")
 
-Milwaukee’s depth and shooting consistency - not just from their stars, but across the rotation - proved decisive in their Emirates Cup win.
+# Filter and prepare table
+star_table <- df %>%
+  filter(player_nba_shooter %in% stars) %>%
+  group_by(player_nba_shooter, team_nba_off) %>%
+  summarise(
+    FGA = sum(fga, na.rm = TRUE),
+    FGM = sum(fg, na.rm = TRUE),
+    FG_percent = round(FGM / FGA, 3),
+    FG3A = sum(fga3, na.rm = TRUE),
+    FG3M = sum(fg3, na.rm = TRUE),
+    FG3_percent = round(FG3M / FG3A, 3),
+    eFG_percent = round((FGM + 0.5 * FG3M) / FGA, 3),
+    Points = sum(fg2 * 2 + fg3 * 3, na.rm = TRUE),
+    avg_qSQ = round(mean(qSQ, na.rm = TRUE), 3)
+  ) %>%
+  ungroup() %>%
+  rename(
+    Player = player_nba_shooter,
+    Team = team_nba_off,
+    `FG%` = FG_percent,
+    `3PA` = FG3A,
+    `3PM` = FG3M,
+    `3P%` = FG3_percent,
+    `eFG%` = eFG_percent,
+    `qSQ` = avg_qSQ
+  ) %>%
+  arrange(desc(Points))
+```
 
+```{r Star players table, echo=FALSE}
+# Display table using gt
+star_table %>%
+  gt() %>%
+  tab_header(
+    title = md("**Star Player Comparison**"),
+    subtitle = "Shot performance metrics for Bucks and Thunder primary scorers"
+  ) %>%
+  fmt_percent(columns = c(`FG%`, `3P%`, `eFG%`), decimals = 1) %>%  # ← no qSQ here
+  fmt_number(columns = c(`qSQ`), decimals = 3) %>%  # ← format qSQ as a decimal
+  fmt_number(columns = c(FGA, FGM, `3PA`, Points), decimals = 0) %>%
+  cols_align(align = "center") %>%
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(columns = Player)
+  ) %>% 
+  tab_source_note(
+    source_note = md("*Point totals reflect only field goals made; free throws are not included.*")
+  )
+
+```
+
+#### Role Players Performance
+
+Beyond the stars, the supporting casts told two different stories. Milwaukee’s supporting cast provided critical contributions. Brook Lopez and Bobby Portis combined for 20 points on 13 shot attempts, both shooting above 50%. Portis added an efficient interior presence, while Lopez spaced the floor effectively.
+
+Meanwhile, Oklahoma City's role players were less effective. Gary Trent Jr. and Isaiah Joe had opportunities, but were less efficient. They combined for 18 shot attempts and only 5 made field goals. The Thunder’s role players, like the stars, struggled to convert shot quality into scoring output.
+
+```{r Getting data for supporting players, include=FALSE, echo=FALSE}
+# Supporting cast = everyone with 5+ FGA and not a star
+supporting_players <- df %>%
+  filter(!player_nba_shooter %in% c("Antetokounmpo, Giannis", "Lillard, Damian", 
+                                    "Gilgeous-Alexander, Shai", "Williams, Jalen")) %>%
+  group_by(player_nba_shooter, team_nba_off) %>%
+  summarise(
+    FGA = sum(fga, na.rm = TRUE),
+    FGM = sum(fg, na.rm = TRUE),
+    FG_percent = round(FGM / FGA, 3),
+    FG3A = sum(fga3, na.rm = TRUE),
+    FG3M = sum(fg3, na.rm = TRUE),
+    FG3_percent = round(FG3M / FG3A, 3),
+    eFG_percent = round((FGM + 0.5 * FG3M) / FGA, 3),
+    Points = sum(fg2 * 2 + fg3 * 3, na.rm = TRUE),
+    avg_qSQ = round(mean(qSQ, na.rm = TRUE), 3)
+  ) %>%
+  filter(FGA >= 5) %>%
+  ungroup() %>%
+  rename(
+    Player = player_nba_shooter,
+    Team = team_nba_off,
+    `FG%` = FG_percent,
+    `3PA` = FG3A,
+    `3PM` = FG3M,
+    `3P%` = FG3_percent,
+    `eFG%` = eFG_percent,
+    `qSQ` = avg_qSQ
+  ) %>%
+  arrange(desc(Points))
+```
+
+```{r Supporting players table, echo=FALSE}
+supporting_players %>%
+  gt() %>%
+  tab_header(
+    title = md("**Supporting Cast Performance**"),
+    subtitle = "Non-star players with 5+ FGA / Points "
+  ) %>%
+  fmt_percent(columns = c(`FG%`, `3P%`, `eFG%`), decimals = 1) %>%
+  fmt_number(columns = c(`qSQ`), decimals = 3) %>%
+  fmt_number(columns = c(FGA, FGM, `3PA`, Points), decimals = 0) %>%
+  cols_align(align = "center") %>%
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(columns = Player)
+  ) %>% 
+  tab_source_note(
+    source_note = md("*Point totals reflect only field goals made; free throws are not included.*")
+  )
+```
+
+Together, these differences in execution and efficiency — both from stars and their supporting teammates — created a decisive edge for Milwaukee, whose balanced scoring and efficient shooting lifted them to victory.
+
+**Note: All point totals in this section are based on field goals only and do not include points scored at the free throw line. This approach isolates shot-making efficiency based on the shot data provided.**
+
+#### Player Defensive Performance
+
+In addition to their offensive execution, Milwaukee’s individual defenders played a key role in shaping the outcome of the game. Giannis Antetokounmpo was dominant on the defensive end, holding opponents to just 11.1% shooting across 9 defended attempts while maintaining a disciplined average contest distance of 5 feet. Pat Connaughton (12.5%), Bobby Portis (16.7%), and Andre Jackson Jr. (28.6%) also provided valuable contributions by limiting shot success in their matchups. Even Damian Lillard, more widely known for his offensive impact, allowed just 3 made field goals on 15 attempts (20%), indicating his commitment on both ends of the floor.
+
+```{r Player defensive summary table, echo=FALSE}
+# Player defensive summary
+defender_summary <- df %>%
+  filter(fga == 1, !is.na(player_nba_closestDef), !is.na(fg)) %>%
+  group_by(Defender = player_nba_closestDef, Team = team_nba_def) %>%
+  summarise(
+    Shots_Defended = n(),
+    FGM_Against = sum(fg, na.rm = TRUE),
+    FG_Percent_Against = round(FGM_Against / Shots_Defended, 3),
+    Avg_Def_Dist = round(mean(closestDefDist, na.rm = TRUE), 2),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(Shots_Defended))
+
+# Player defensive summary table
+defender_summary %>%
+  gt() %>%
+  tab_header(
+    title = md("**Shooting Efficiency Against Closest Defenders**"),
+    subtitle = "Defender-level impact on opponent shooting"
+  ) %>%
+  fmt_percent(columns = FG_Percent_Against, decimals = 1) %>%
+  fmt_number(columns = c(Shots_Defended, FGM_Against), decimals = 0) %>%
+  cols_label(
+    FG_Percent_Against = "FG% Allowed",
+    Avg_Def_Dist = "Avg Distance"
+  ) %>%
+  cols_align(align = "center")
+```
+
+On the other side, Oklahoma City’s defenders were far less effective. Jalen Williams and Ajay Mitchell allowed 62.5% and 80% FG, respectively, and were frequently targeted. Isaiah Hartenstein, OKC’s tallest player and defensive anchor in the middle, allowed opponents to shoot 53.3% on 15 attempts — an inefficient showing for a central rim protector. Even perimeter defenders like Shai Gilgeous-Alexander (46.2%) and Cason Wallace (50%) struggled to contain, often contesting within tight margins but failing to disrupt shot outcomes. Collectively, this lack of resistance allowed Milwaukee to maintain rhythm and efficiency throughout the game.
 
 ## Five Key Observations
 
@@ -341,49 +628,6 @@ Milwaukee’s depth and shooting consistency - not just from their stars, but ac
 
 
 
-```{r}
-df %>%
-  group_by(team_nba_off) %>%
-  summarise(made = sum(fg == 1), missed = sum(fg == 0)) %>%
-  hchart("bar", hcaes(x = team_nba_off, y = made), name = "Made Shots")
-```
-
-
-
-
-
-
-```{r}
-interactive_df <- df %>%
-  filter(fg3 == 1) %>%
-  mutate(
-    label = paste0(
-      "<b>Shooter:</b> ", player_nba_shooter, "<br>",
-      "<b>Distance:</b> ", round(distance, 1), " ft<br>",
-      "<b>Contest Level:</b> ", contestLevel, "<br>",
-      "<b>Defender Distance:</b> ", round(closestDefDist, 1), " ft"
-    )
-  )
-
-
-
-highchart() %>%
-  hc_chart(type = "scatter") %>%
-  
-  hc_add_series(
-    data = interactive_df,
-    type = "scatter",
-    hcaes(x = loc_x, y = loc_y),
-    tooltip = list(pointFormat = "{point.label}"),
-    name = "Made Shots"
-  ) %>%
-  
-  hc_title(text = "Interactive Shot Chart: Made Shots Only") %>%
-  hc_xAxis(title = list(text = "Court X"), min = -25, max = 25) %>%
-  hc_yAxis(title = list(text = "Court Y"), min = 0, max = 47) %>%
-  hc_tooltip(useHTML = TRUE) %>%
-  hc_plotOptions(scatter = list(marker = list(radius = 4)))
-```
 
 
 
@@ -409,43 +653,6 @@ highchart() %>%
 
 
 
-
-
-
-
-
-```{r}
-# Choose one team to display
-selected_team <- "OKC"  # Change this to any team in your dataset
-
-# Filter dataset
-team_data <- df %>%
-  filter(team_nba_off == selected_team, fg3 == 1) %>%
-  mutate(
-    tooltip = paste0(
-      "<b>Shooter:</b> ", player_nba_shooter, "<br>",
-      "<b>Distance:</b> ", round(distance, 1), " ft<br>",
-      "<b>Contest:</b> ", contestLevel, "<br>",
-      "<b>Defender:</b> ", round(closestDefDist, 1), " ft"
-    )
-  )
-
-# Load and rasterize court image
-court_url <- "https://thedatagame.com.au/wp-content/uploads/2016/03/nba_court.jpg"
-court_img <- rasterGrob(readJPEG(getURLContent(court_url)), 
-                        width = unit(1, "npc"), height = unit(1, "npc"))
-
-# Create ggplot with interactivity
-gg <- ggplot(team_data, aes(x = loc_x, y = loc_y)) +
-  annotation_custom(court_img, xmin = -25, xmax = 25, ymin = 0, ymax = 47) +
-  geom_point_interactive(aes(tooltip = tooltip), color = "blue", size = 2, alpha = 0.7) +
-  coord_fixed(xlim = c(-25, 25), ylim = c(0, 47)) +
-  labs(title = paste("Interactive Shot Chart -", selected_team)) +
-  theme_void()
-
-# Render as interactive plot
-girafe(ggobj = gg)
-```
 
 
 

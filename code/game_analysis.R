@@ -24,7 +24,7 @@ load_libraries(c("tidyverse", "lubridate", "stats", "ggplot2", "corrplot", "stri
                  "yardstick", "gsheet", "caret", "randomForest", "here", "tibble", "dplyr", "ISAR",
                  "tidyr", "mgcv", "teamcolors", "baseballr", "Lahman", "remotes", "ggcorrplot", "broom", "readr",
                  "glmnet", "xgboost", "Matrix", "Metrics", "reshape2", "DMwR2", "smotefamily", "highcharter",
-                 "jpeg", "grid", "gridExtra", "RCurl", "gt"))
+                 "jpeg", "grid", "gridExtra", "RCurl", "gt", "purrr"))
 
 # Load only the necessary functions from 'car'
 library(car, exclude = "select")
@@ -58,6 +58,24 @@ df <- df %>%
     fga2 = ifelse(fga == 1 & fga3 == 0, 1, 0),
     fg2 = ifelse(fg == 1 & fg3 == 0, 1, 0)
     )
+
+########################### Image for Shot Charts ################################
+
+# Load and prepare a half-court image as a background for shot charts.
+# The image is sourced from the specified URL and converted into a raster graphic
+# object using `rasterGrob`, which can then be added to a ggplot using 
+# `annotation_custom()`.
+#
+# This background image replaces the need to manually draw court lines,
+# providing a visually accurate and professional court representation.
+
+# half court image
+courtImg.URL <- "https://thedatagame.com.au/wp-content/uploads/2016/03/nba_court.jpg"
+court <- rasterGrob(
+  readJPEG(getURLContent(courtImg.URL)),
+  width=unit(1,"npc"),
+  height=unit(1,"npc")
+)
 
 ################## Player Performance EDA ####################
 
@@ -165,7 +183,7 @@ highchart() %>%
     showInLegend = FALSE
   )
 
-#_________________ Star Player Performance _______________________-
+#_________________ Star Player Performance ________________________
 
 # Manually define your key players (adjust names if needed)
 stars <- c("Antetokounmpo, Giannis", "Lillard, Damian",
@@ -269,15 +287,261 @@ supporting_players %>%
     source_note = md("*Point totals reflect only field goals made; free throws are not included.*")
   )
 
+# _________________________ Player Defensive Summary ______________________________-
+
+# Player Defensive Summary
+defender_summary <- df %>%
+  filter(fga == 1, !is.na(player_nba_closestDef), !is.na(fg)) %>%
+  group_by(Defender = player_nba_closestDef, Team = team_nba_def) %>%
+  summarise(
+    Shots_Defended = n(),
+    FGM_Against = sum(fg, na.rm = TRUE),
+    FG_Percent_Against = round(FGM_Against / Shots_Defended, 3),
+    Avg_Def_Dist = round(mean(closestDefDist, na.rm = TRUE), 2),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(Shots_Defended))
+
+# Player defensive summary table
+defender_summary %>%
+  gt() %>%
+  tab_header(
+    title = md("**Shooting Efficiency Against Closest Defenders**"),
+    subtitle = "Defender-level impact on opponent shooting"
+  ) %>%
+  fmt_percent(columns = FG_Percent_Against, decimals = 1) %>%
+  fmt_number(columns = c(Shots_Defended, FGM_Against), decimals = 0) %>%
+  cols_label(
+    FG_Percent_Against = "FG% Allowed",
+    Avg_Def_Dist = "Avg Distance"
+  ) %>%
+  cols_align(align = "center")
 
 
+####################### Team Performance EDA #####################################
+
+# Shot Density Heatmap by Team
+df %>%
+  ggplot(aes(x = loc_x, y = loc_y)) +
+  annotation_custom(court, xmin = -25, xmax = 25, ymin = 0, ymax = 47) +
+  stat_density_2d(aes(fill = ..level..), geom = "polygon", alpha = 0.6) +
+  facet_wrap(~ team_nba_off) +
+  scale_fill_viridis_c() +
+  coord_fixed() +
+  labs(title = "Shot Density Heatmap by Team") +
+  theme_minimal()
+
+# Shot chart for 3 pointers made with passers by each team
+df %>% 
+  filter(fg3 == 1) %>% 
+  ggplot() +
+  
+  # Add court background
+  annotation_custom(court, xmin = -25, xmax = 25, ymin = 0, ymax = 47) +
+  
+  # Shooter positions
+  geom_point(aes(x = loc_x, y = loc_y), color = "blue", size = 2, alpha = 0.6) +
+  
+  # Passer positions
+  geom_point(aes(x = loc_x_passer, y = loc_y_passer), color = "green", size = 2, alpha = 0.6) +
+  
+  # Pass lines
+  geom_segment(aes(x = loc_x_passer, y = loc_y_passer, 
+                   xend = loc_x, yend = loc_y),
+               arrow = arrow(length = unit(0.12, "inches")),
+               color = "gray30", alpha = 0.4) +
+  
+  # Facet by team
+  facet_wrap(~ team_nba_off) +
+  
+  coord_fixed() +
+  labs(title = "Three Point FGs Made Shot Chart with Passes by Team",
+       subtitle = "Shooter (blue), Passer (green), Pass (gray)",
+       x = "Court X", y = "Court Y") +
+  theme_minimal()
 
 
+# Shot chart for 3 pointers made by each team
+df %>% 
+  filter(fg3 == 1) %>% 
+  ggplot() +
+  
+  # Add court background
+  annotation_custom(court, xmin = -25, xmax = 25, ymin = 0, ymax = 47) +
+  
+  # Shooter positions
+  geom_point(aes(x = loc_x, y = loc_y), color = "blue", size = 2, alpha = 0.6) +
+  
+  # Facet by team
+  facet_wrap(~ team_nba_off) +
+  
+  coord_fixed() +
+  labs(title = "Three Point FGs Made By Each Team",
+       x = "Court X", y = "Court Y") +
+  theme_minimal()
+
+# Three pointers summary for each team
+three_point_summary <- df %>%
+  group_by(team_nba_off) %>%
+  summarise(
+    `3PA` = sum(fga3, na.rm = TRUE),
+    `3PM` = sum(fg3, na.rm = TRUE),
+    `3P%` = round(`3PM` / `3PA`, 3),
+    Total_Shots = n(),
+    `3PT Share` = round(`3PA` / Total_Shots, 3)
+  ) %>%
+  rename(Team = team_nba_off)
+
+# Table showing three point summary
+three_point_summary %>%
+  gt() %>%
+  tab_header(
+    title = md("**Team Three-Point Shooting Summary**"),
+    subtitle = "Based on made and attempted 3PT field goals"
+  ) %>%
+  fmt_percent(columns = c(`3P%`, `3PT Share`), decimals = 1) %>%
+  fmt_number(columns = c(`3PA`, `3PM`, Total_Shots), decimals = 0) %>%
+  cols_align(align = "center")
 
 
+# Summary of assists and catch and shoot attempts
+assist_cas_summary <- df %>%
+  group_by(team_nba_off) %>%
+  summarise(
+    FGA = sum(fga, na.rm = TRUE),
+    Made_FG = sum(fg, na.rm = TRUE),
+    Assisted_Makes = sum(fg == 1 & assisted == 1, na.rm = TRUE),
+    CatchShoot_Attempts = sum(catchAndShoot == 1, na.rm = TRUE),
+    
+    Assisted_Shot_Pct = round(Assisted_Makes / Made_FG, 3),
+    CatchShoot_Rate = round(CatchShoot_Attempts / FGA, 3)
+  ) %>%
+  rename(Team = team_nba_off)
 
 
-print()
+# Table showing assists vs catch and shoot
+assist_cas_summary %>%
+  gt() %>%
+  tab_header(
+    title = md("**Assisted Shots and Catch-and-Shoot Rate**"),
+    subtitle = "Team-level comparison"
+  ) %>%
+  fmt_percent(columns = c(`Assisted_Shot_Pct`, `CatchShoot_Rate`), decimals = 1) %>%
+  fmt_number(columns = c(FGA, Made_FG, CatchShoot_Attempts), decimals = 0) %>%
+  cols_label(
+    Assisted_Shot_Pct = "Assisted FG%",
+    CatchShoot_Rate = "Catch-and-Shoot FGA%"
+  ) %>%
+  cols_align(align = "center")
+
+
+# Looking at shooter speed for each team and their field goals made and missed
+df %>% 
+  group_by(fg, team_nba_off) %>% 
+  summarise(
+    avg_shooter_speed = mean(shooterSpeed, na.rm = TRUE)
+  )
+
+# Shooter speed summary
+speed_summary <- df %>%
+  filter(fga == 1, !is.na(shooterSpeed)) %>%
+  mutate(Shot_Result = ifelse(fg == 1, "Made", "Missed")) %>%
+  group_by(Team = team_nba_off, Shot_Result) %>%
+  summarise(
+    avg_speed = round(mean(shooterSpeed, na.rm = TRUE), 2),
+    shot_count = n(),
+    .groups = "drop"
+  )
+
+
+# Bar plot of shooter speed and shot result
+highchart() %>%
+  hc_chart(type = "column") %>%
+  hc_title(text = "Average Shooter Speed by Team and Shot Result") %>%
+  hc_xAxis(categories = unique(speed_summary$Team)) %>%
+  hc_yAxis(title = list(text = "Avg. Shooter Speed (ft/s)")) %>%
+  hc_plotOptions(
+    column = list(
+      dataLabels = list(enabled = TRUE),
+      grouping = TRUE,
+      pointPadding = 0.2,
+      borderWidth = 0
+    )
+  ) %>%
+  hc_tooltip(
+    useHTML = TRUE,
+    headerFormat = "<b>{point.name}</b><br>",
+    pointFormat = paste(
+      "Result: {series.name}<br>",
+      "Avg Speed: {point.y} ft/s<br>",
+      "Shots: {point.custom.shots}"
+    )
+  ) %>%
+  hc_add_series(
+    name = "Made",
+    data = pmap(
+      speed_summary %>% filter(Shot_Result == "Made"),
+      function(Team, Shot_Result, avg_speed, shot_count) {
+        list(
+          y = avg_speed,
+          name = Team,
+          custom = list(shots = shot_count)
+        )
+      }
+    ),
+    color = "#2ECC71"
+  ) %>%
+  hc_add_series(
+    name = "Missed",
+    data = pmap(
+      speed_summary %>% filter(Shot_Result == "Missed"),
+      function(Team, Shot_Result, avg_speed, shot_count) {
+        list(
+          y = avg_speed,
+          name = Team,
+          custom = list(shots = shot_count)
+        )
+      }
+    ),
+    color = "#E74C3C"
+  )
+
+# Looking at team defense
+print(df %>% 
+        group_by(team_nba_def, contestLevel) %>% 
+        summarise(
+          count = n(),
+          `fg%` = sum(fg) / sum(fga),
+          fg2 = sum(fg2),
+          fga3 = sum(fga3),
+          fg3 = sum(fg3),
+          avg_defender_dist = mean(closestDefDist),
+          shooterSpeed = mean(shooterSpeed)
+        ), n = 40)
+
+# Creating a table for the team defense
+df %>%
+  group_by(team_nba_def, contestLevel) %>%
+  summarise(
+    count = n(),
+    `fg%` = sum(fg) / sum(fga),
+    fg2 = sum(fg2),
+    fga3 = sum(fga3),
+    fg3 = sum(fg3),
+    avg_defender_dist = mean(closestDefDist),
+    shooterSpeed = mean(shooterSpeed),
+    .groups = "drop"
+  ) %>%
+  rename(`Team on Defense` = team_nba_def) %>%
+  gt() %>%
+  tab_header(
+    title = md("**Defensive Impact by Contest Level**"),
+    subtitle = "FG%, contest distance, and shooter speed vs. each defense"
+  ) %>%
+  fmt_percent(columns = `fg%`, decimals = 1) %>%
+  fmt_number(columns = c(avg_defender_dist, shooterSpeed), decimals = 2) %>%
+  cols_align(align = "center")
+
 
 
 
@@ -329,6 +593,12 @@ df %>%
 df %>% 
   filter(player_nba_shooter == "Lopez, Brook") %>% 
   count(region)
+
+print(df %>% 
+  group_by(team_nba_off) %>% 
+  count(complexShotType),
+  n = 40
+  )
 
 
 
@@ -388,11 +658,6 @@ cor_matrix <- cor(select_if(df, is.numeric), use = "pairwise.complete.obs")
 # View top correlations
 print(cor_matrix)
 
-df %>% 
-  group_by(fg, team_nba_off) %>% 
-  summarise(
-    avg_shooter_speed = mean(shooterSpeed, na.rm = TRUE)
-  )
 
 
 df %>% 
@@ -469,15 +734,40 @@ print(df %>%
 
 
 print(df %>% 
-        group_by(team_nba_off, contestLevel) %>% 
+        group_by(team_nba_def, contestLevel) %>% 
         summarise(
           count = n(),
+          `fg%` = sum(fg) / sum(fga),
           fg2 = sum(fg2),
           fga3 = sum(fga3),
           fg3 = sum(fg3),
           avg_defender_dist = mean(closestDefDist),
           shooterSpeed = mean(shooterSpeed)
         ), n = 40)
+
+
+df %>%
+  group_by(team_nba_def, contestLevel) %>%
+  summarise(
+    count = n(),
+    `fg%` = sum(fg) / sum(fga),
+    fg2 = sum(fg2),
+    fga3 = sum(fga3),
+    fg3 = sum(fg3),
+    avg_defender_dist = mean(closestDefDist),
+    shooterSpeed = mean(shooterSpeed),
+    .groups = "drop"
+  ) %>%
+  rename(`Team on Defense` = team_nba_def) %>%
+  gt() %>%
+  tab_header(
+    title = md("**Defensive Impact by Contest Level**"),
+    subtitle = "FG%, contest distance, and shooter speed vs. each defense"
+  ) %>%
+  fmt_percent(columns = `fg%`, decimals = 1) %>%
+  fmt_number(columns = c(avg_defender_dist, shooterSpeed), decimals = 2) %>%
+  cols_align(align = "center")
+
 
 ######################## Graphs ##############################
 
@@ -549,34 +839,42 @@ df %>%
   theme_minimal()
 
 
-# Shot chart for 3 pointers made with passers by each team
-df %>% 
-  filter(fg3 == 1) %>% 
-  ggplot() +
-  
-  # Add court background
-  annotation_custom(court, xmin = -25, xmax = 25, ymin = 0, ymax = 47) +
-  
-  # Shooter positions
-  geom_point(aes(x = loc_x, y = loc_y), color = "blue", size = 2, alpha = 0.6) +
-  
-  # Passer positions
-  geom_point(aes(x = loc_x_passer, y = loc_y_passer), color = "green", size = 2, alpha = 0.6) +
-  
-  # Pass lines
-  geom_segment(aes(x = loc_x_passer, y = loc_y_passer, 
-                   xend = loc_x, yend = loc_y),
-               arrow = arrow(length = unit(0.12, "inches")),
-               color = "gray30", alpha = 0.4) +
-  
-  # Facet by team
-  facet_wrap(~ team_nba_off) +
-  
-  coord_fixed() +
-  labs(title = "Three Point FGs Made Shot Chart with Passes by Team",
-       subtitle = "Shooter (blue), Passer (green), Pass (gray)",
-       x = "Court X", y = "Court Y") +
-  theme_minimal()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
