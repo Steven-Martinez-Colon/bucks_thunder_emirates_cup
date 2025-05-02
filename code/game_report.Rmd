@@ -4,6 +4,10 @@ author: "Steven Martinez"
 date: "`r Sys.Date()`"
 output:
   html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    highlight: tango
     df_print: paged
   pdf_document: default
 ---
@@ -11,7 +15,6 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
 
 ```{r Loading Libraries, include=FALSE}
 load_libraries <- function(packages) {
@@ -76,21 +79,38 @@ df <- df %>%
   )
 ```
 
-
-
-
-
 ## Introduction
 
+The 2024 Emirates Cup Final featured a high-stakes matchup between the Milwaukee Bucks and the Oklahoma City Thunder — two rising contenders with contrasting styles of play. This report analyzes every shot attempt from the game to uncover the tactical and statistical factors that shaped the outcome.
 
+Our analysis integrates both player-level and team-level performance, using spatial data, shooting metrics, and defensive tracking information. By blending data visualization with accessible commentary, this report aims to deliver insights for a broad audience — from front office decision-makers and coaching staff to media and basketball fans.
+
+The goal is not only to identify how the Bucks won, but why they succeeded — through a closer examination of shot profiles, ball movement, individual matchups, and overall efficiency. The findings highlight key contributors, defensive breakdowns, and strategic execution that ultimately determined the result of the game.
 
 ## Summary of Game
 
+In the 2024 Emirates Cup Final, the Milwaukee Bucks defeated the Oklahoma City Thunder with a commanding performance on both ends of the floor. The Bucks executed a balanced, efficient offense while disrupting the Thunder’s rhythm with disciplined team defense. Key players like Giannis Antetokounmpo and Damian Lillard delivered standout performances, but it was Milwaukee’s collective execution, spacing, and defensive impact that ultimately decided the game.
 
+Below are five key factors that contributed to the Bucks' win:
+
+1. Offensive Efficiency and Balance
+Milwaukee shot significantly better across all areas of the floor, converting 42% of their total shots and over 52% on lightly contested attempts. They also excelled from beyond the arc, hitting 42.5% of their three-point attempts compared to just 15.6% for OKC. Their ability to finish with control and create consistent, high-quality looks gave them a major scoring edge.
+
+2. Dominant Performances from Star Players
+Giannis and Dame combined for 38 of the team’s 81 field goal attempts and were highly efficient — each shooting over 50% from the field. In contrast, OKC’s stars (Shai Gilgeous-Alexander and Jalen Williams) combined for just 35.5% shooting, struggling against Milwaukee’s defensive schemes.
+
+3. Catch-and-Shoot Execution
+The Bucks posted a higher catch-and-shoot rate (59.3%) and assisted on 73.5% of made field goals. Their drive-and-kick game consistently produced open looks on the perimeter, especially for role players.
+
+4. Disruptive Defensive Pressure
+Milwaukee defenders forced OKC into rushed shots, as evidenced by the Thunder’s high shooter speed (4.18 ft/sec) on lightly contested attempts. Even when OKC had space, they struggled to convert — shooting just 17.9% on lightly contested shots.
+
+5. Individual Defensive Matchups
+Multiple Bucks defenders held their matchups to under 30% FG, including Giannis (11.1%) and Connaughton (12.5%). Meanwhile, OKC’s defenders — including Hartenstein (53.3%) and Jalen Williams (62.5%) — were repeatedly scored on, failing to contain Milwaukee’s rhythm.
 
 ## Team Analysis
 
-#### Offensive Analysis
+### Offensive Analysis
 
 ```{r Half court image for shooting chart, echo=FALSE}
 # half court image
@@ -289,7 +309,7 @@ highchart() %>%
 
 The disparity in movement speed — especially on made shots — reinforces a broader theme: Milwaukee’s offense consistently produced in-rhythm opportunities, while Oklahoma City relied more on isolation, improvisation, or rushed possessions. This fundamental difference contributed meaningfully to the Bucks' superior scoring efficiency.
 
-#### Defensive Analysis
+### Defensive Analysis
 
 At the team level, the difference in defensive execution was pronounced. Milwaukee’s defense held Oklahoma City to just 17.9% shooting on lightly contested shots, despite providing a modest 5.8 feet of space. This inefficiency is further explained by OKC’s high shooter speed (4.18 ft/sec) on these attempts, indicating rushed, off-rhythm looks even without heavy pressure.
 
@@ -322,7 +342,7 @@ In contrast, Oklahoma City allowed Milwaukee to shoot 52.2% on lightly contested
 
 ## Player Analysis
 
-#### Star Players Performance
+### Star Players Performance
 
 A critical factor in the outcome of the Emirates Cup Final was the difference in shot volume and scoring efficiency between each team’s primary contributors. The distribution of field goal attempts highlights how Milwaukee's offense was balanced across multiple players, while Oklahoma City relied more heavily on a smaller core.
 
@@ -478,7 +498,7 @@ star_table %>%
 
 ```
 
-#### Role Players Performance
+### Role Players Performance
 
 Beyond the stars, the supporting casts told two different stories. Milwaukee’s supporting cast provided critical contributions. Brook Lopez and Bobby Portis combined for 20 points on 13 shot attempts, both shooting above 50%. Portis added an efficient interior presence, while Lopez spaced the floor effectively.
 
@@ -540,7 +560,7 @@ Together, these differences in execution and efficiency — both from stars and 
 
 **Note: All point totals in this section are based on field goals only and do not include points scored at the free throw line. This approach isolates shot-making efficiency based on the shot data provided.**
 
-#### Player Defensive Performance
+### Player Defensive Performance
 
 In addition to their offensive execution, Milwaukee’s individual defenders played a key role in shaping the outcome of the game. Giannis Antetokounmpo was dominant on the defensive end, holding opponents to just 11.1% shooting across 9 defended attempts while maintaining a disciplined average contest distance of 5 feet. Pat Connaughton (12.5%), Bobby Portis (16.7%), and Andre Jackson Jr. (28.6%) also provided valuable contributions by limiting shot success in their matchups. Even Damian Lillard, more widely known for his offensive impact, allowed just 3 made field goals on 15 attempts (20%), indicating his commitment on both ends of the floor.
 
@@ -576,15 +596,14 @@ defender_summary %>%
 
 On the other side, Oklahoma City’s defenders were far less effective. Jalen Williams and Ajay Mitchell allowed 62.5% and 80% FG, respectively, and were frequently targeted. Isaiah Hartenstein, OKC’s tallest player and defensive anchor in the middle, allowed opponents to shoot 53.3% on 15 attempts — an inefficient showing for a central rim protector. Even perimeter defenders like Shai Gilgeous-Alexander (46.2%) and Cason Wallace (50%) struggled to contain, often contesting within tight margins but failing to disrupt shot outcomes. Collectively, this lack of resistance allowed Milwaukee to maintain rhythm and efficiency throughout the game.
 
-## Five Key Observations
-
-
-
 ## Conclusion
 
+Milwaukee’s win in the 2024 Emirates Cup Final was not simply the result of hot shooting or individual brilliance — it was a product of cohesive team execution, superior shot creation, and disciplined defense. The Bucks dictated the game’s rhythm, leveraging spacing and movement to create high-quality scoring opportunities, particularly from beyond the arc. On defense, they disrupted Oklahoma City’s timing, forcing rushed attempts and limiting the effectiveness of the Thunder’s primary scorers.
 
+What separated the Bucks was not just their ability to make shots, but their ability to generate the right shots — through catch-and-shoot opportunities, assisted field goals, and controlled execution in contested situations. Meanwhile, the Thunder struggled to convert even lightly contested looks, revealing cracks in both their shot selection and floor spacing.
 
-## Appendix
+Ultimately, Milwaukee’s combination of offensive efficiency and defensive accountability proved too much for Oklahoma City. Their performance in this game provides a model of how smart shot selection, ball movement, and matchup discipline can swing the outcome of a high-level matchup — and it offers valuable insights for future strategic planning.
+
 
 
 

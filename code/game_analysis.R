@@ -320,6 +320,30 @@ defender_summary %>%
 
 ####################### Team Performance EDA #####################################
 
+# Calculating field goal average by each team
+fg_avg <- df %>%
+  group_by(team_nba_off) %>%
+  summarise(
+    makes = sum(fg, na.rm = TRUE),
+    attempts = sum(fga, na.rm = TRUE),
+    fg_pct = makes / attempts
+  )
+
+# Looking at the the field goal average
+print(fg_avg)
+
+# Calculating three-point field goal average by each team
+fg3_avg <- df %>% 
+  group_by(team_nba_off) %>% 
+  summarise(
+    makes = sum(fg3, na.rm = TRUE),
+    attempts = sum(fga3, na.rm = TRUE),
+    fg3_pct = makes / attempts
+  )
+
+# Looking at the three point average by each team
+print(fg3_avg)
+
 # Shot Density Heatmap by Team
 df %>%
   ggplot(aes(x = loc_x, y = loc_y)) +
@@ -602,29 +626,7 @@ print(df %>%
 
 
 
-# Calculating field goal average by each team
-fg_avg <- df %>%
-  group_by(team_nba_off) %>%
-  summarise(
-    makes = sum(fg, na.rm = TRUE),
-    attempts = sum(fga, na.rm = TRUE),
-    fg_pct = makes / attempts
-  )
 
-# Looking at the the field goal average
-print(fg_avg)
-
-# Calculating three-point field goal average by each team
-fg3_avg <- df %>% 
-  group_by(team_nba_off) %>% 
-  summarise(
-    makes = sum(fg3, na.rm = TRUE),
-    attempts = sum(fga3, na.rm = TRUE),
-    fg3_pct = makes / attempts
-  )
-
-# Looking at the three point average by each team
-print(fg3_avg)
 
 # Table of contested level for Bucks
 df %>%
