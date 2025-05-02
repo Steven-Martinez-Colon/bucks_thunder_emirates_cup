@@ -572,19 +572,7 @@ df %>%
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-################################################################################
+######################### Miscellaneous EDA - Not used in the report #######################################################
 
 # Summary of Bucks team shots
 df %>% 
@@ -626,8 +614,6 @@ print(df %>%
 
 
 
-
-
 # Table of contested level for Bucks
 df %>%
   filter(team_nba_off == "MIL") %>%
@@ -659,7 +645,6 @@ cor_matrix <- cor(select_if(df, is.numeric), use = "pairwise.complete.obs")
 
 # View top correlations
 print(cor_matrix)
-
 
 
 df %>% 
@@ -772,26 +757,6 @@ df %>%
 
 
 ######################## Graphs ##############################
-
-# ------------------------------------------------------------------------------
-# Load and prepare a half-court image as a background for shot charts.
-# The image is sourced from the specified URL and converted into a raster graphic
-# object using `rasterGrob`, which can then be added to a ggplot using 
-# `annotation_custom()`.
-#
-# This background image replaces the need to manually draw court lines,
-# providing a visually accurate and professional court representation.
-
-# half court image
-courtImg.URL <- "https://thedatagame.com.au/wp-content/uploads/2016/03/nba_court.jpg"
-court <- rasterGrob(
-  readJPEG(getURLContent(courtImg.URL)),
-  width=unit(1,"npc"),
-  height=unit(1,"npc")
-)
-
-# ------------------------------------------------------------------------------
-
 
 # Histogram distribution of 
 ggplot(df, aes(x = qSQ, color = team_nba_off, fill = team_nba_off)) +
