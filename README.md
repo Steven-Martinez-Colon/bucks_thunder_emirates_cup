@@ -9,5 +9,7 @@ The goal of this report was to generate insights accessible to both analytical a
 ---
 
 Author: Steven Martinez
+
 Master’s in Data Science — Merrimack College
+
 GitHub: Steven-Martinez-Colon
