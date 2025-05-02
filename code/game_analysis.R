@@ -35,7 +35,7 @@ options(warnings = 0)
 ############################## Loading Dataset ####################################
 
 # Loading Dataset
-df <- read_csv("data_mil_okc_121724_shots.csv")
+df <- read_csv("data/data_mil_okc_121724_shots.csv")
 
 ################### Data Cleaning ############################################
 
@@ -50,6 +50,7 @@ df <- df %>%
 df <- df %>%
   mutate(fg2 = ifelse(fg == 1 & fg3 == 0, 1, 0))
 
+# Changing binary variables to factors
 df <- df %>%
   mutate(across(where(~ is.numeric(.) && all(na.omit(.) %in% c(0, 1))),
                 as.factor))
