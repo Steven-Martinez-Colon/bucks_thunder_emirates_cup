@@ -1,0 +1,52 @@
+field,type,description
+xid_possession,UUID, ID of the possession in which this event took place
+xid_shot,UUID, ID of the shot
+xid_chance,UUID,Second Spectrum ID of the chance in which this event took place.
+team_nba_off,STRING,Team Abbreviation of team on offense
+team_nba_def,STRING,Team Abbreviation of team on defense
+player_nba_shooter,STRING,Name of shooter
+player_nba_passer,STRING,Name of player who passed ball to shooter; NULL if ball was not passed to shooter
+player_nba_closestDef,STRING,Name of player who was closest defender to shooter
+player_nba_blocker,STRING,Name of player who blocked shot; NULL if not blocked
+period,NUMBER,"Regulation periods 1-4, overtime periods 5 and up."
+frame_start,NUMBER,Frame number corresponding to the shot release
+frame_end,NUMBER,Frame number corresponding to the shot reaching the rim
+gameClock_start,NUMBER,"Number of seconds remaining in period, at the release of the shot."
+gameClock_end,NUMBER,"Number of seconds remaining in period, when the shot reaches the rim."
+gameClock_format_end,STRING,Game clock remaining in period in MM:SS format
+gameClock_format_start,STRING,Game clock remaining in period in MM:SS format
+shotClock,NUMBER,Number of seconds left on shot clock
+loc_x,ARRAY,Location X of the shooter at the release
+loc_y,ARRAY,Location Y of the shooter at the release
+loc_x_passer,ARRAY,Location X of the passer
+loc_y_passer,ARRAY,Location Y of the passer
+region,STRING,Detailed court region of the shot
+m_region,STRING,Generalizerd court region of the shot
+fga,NUMBER,1 if attempt was a field goal made
+fg,NUMBER,1 if attempt was a field goal made
+fga3,NUMBER,1 if attempt was a three-point field goal made
+fg3,NUMBER,1 if attempt was a three-point field goal made
+fouled,NUMBER,1  if the shooter was fouled
+three,NUMBER,1 if attempt was a three-point attempt
+qSQ,NUMBER,"The probability (adjusted for threes) that the shot goes in, ignoring the identity of the shooter, instead measuring NBA average for that shot. The model takes into account the location and movement of the shooter and nearby defenders for the second leading up to the shot release."
+distance,NUMBER,"Distance from shot location to the hoop, in feet"
+shotType,STRING,"Simple breakdown of shot type: heave – Any shot where the shooter takes a long shot that is not a jumper, typically forced by a low shot or game clock. jumper – A jump shot. This includes face up jump shots taken in the post. post – A shot taken within 12 feet that is not a face up jump shot, floater or layup. Examples include turnaround and hook shots taken from a post-up. floater – shot taken on the move from the 8-15 foot range layup – Any type of layup or dunk. Includes dunks off alley-oops, tip ins, cut layups and standstill dunks or layups "
+complexShotType,STRING,"Detailed breakdown of shot type: heave - Any shot where the shooter takes a long shot that is not a jumper, typically forced by a low shot or game clock. catchAndShoot - A stationary jump shot where the shooter releases immediately upon the catch, without dribbling catchAndShootRelocating - A jump shot where the shooter moves laterally or backpedals and shoots immediately upon the catch, without dribbling (includes running in transition, coming off flare screens) catchAndShootOnMoveLeft - A jump shot where the shooter catches turning with the left hand out (usually coming off a screen) catchAndShootOnMoveRight - A jump shot where the shooter catches turning with the right hand out (usually coming off a screen) pullupJumper - A jump shot where the shooter pulls up off the dribble going towards the basket stepback - A jump shot where the shooter steps back off the dribble shakeAndRaise - A jump shot where the shooter makes a basketball move in place with or without dribbling prior to shooting (includes pump fake, side step, jab step) overScreen - A jump shot where the shooter stops behind an on-ball screen to shoot drivingFloater - A floater taken when driving the ball toward the basket cutFloater - A floater taken when receiving the ball on a cut toward the basket postLeft - A post shot taken over the left shoulder postRight - A post shot taken over the right shoulder drivingLayup - A layup or dunk taken while driving the ball toward the basket cutLayup - A layup or dunk taken when receiving the ball on a cut toward the basket standstilllLayup - A layup or dunk taken when receiving the ball standing near the basket lob - A layup or dunk on an alleyoop tip - A layup or dunk on a missed shot putback, without bringing the ball down"
+catchAndShoot,NUMBER,1 if  the shooter dribbled before shooting
+dribblesBefore,NUMBER,The number of dribbles the shooter took before shooting
+assisted,NUMBER,1 if the shot was marked with an assist in the play-by-play
+assistOpp,NUIMBER,1 if the shooter took <= 1 dribbles and held the ball for less than 2.5 seconds
+createdFromPaint,NUMBER,1 if ball was in the paint 2 seconds or less before the shot was taken.
+putback,NUMBER,1 if the shot was taken within 2 seconds of an offensive rebound by the same player.
+blocked,NUMBER,"1 if shot was blocked, false otherwise."
+contestLevel,STRING,"Breaks down the level of contest of the shot using the defender(s) distance, speed, and whether they jump, but no information on hand up: uncontested - no effort made by defenders to bother the shot lightly_contested - defender makes a token or late effort at the shooter heavily_contested - defender makes a full and timely effort to bother the shot"
+hasRearviewContest,NUMBER,1  if at least one of the defenders is contesting from behind the shooter (usually after a pick and roll or pump fake fly-by)
+closestDefDist,NUMBER,Distance of closest defender to shooter at shot release (in feet)
+releaseTime,NUMBER,Number of seconds from the start of the touch to the shooter’s release
+shotAngle,NUMBER,"Shot angle as measured in degrees, where 0 degrees is the centerline. To the right side of the court, angles are positive, to the left they are negative."
+shooterSpeed,NUMBER,"Speed of the shooter, measured in feet per second."
+shooterVelAngle,NUMBER,"Direction of travel for the shooter, in degrees, where zero is on the line between the shooter and the hoop. Positive angle means the player is moving to the left, or in a clockwise motion with respect to the hoop"
+rimDepth,NUMBER,"Measures how far (in feet) from the center of the rim the shot goes in the long/short dimension. A negative value here means the shot was short from the shooter's perspective, and positive means long, null for layups and shots with noisy trajectories"
+rimLeftRight,NUMBER,"Measures how far (in feet) from the center of the rim the shot goes in the left/right dimension. A negative value here means the shot was left from the shooter's perspective, and positive means right, null for layups and shots with noisy trajectories"
+arcAngle,NUMBER,"Measures the angle of entry of the ball to the hoop, null for layups and shots with noisy trajectories"
+complexOutcome,STRING,"Classifies how cleanly the ball passed through the hoop for jump shots, null for layups and shots with noisy trajectories: swish – ball goes in without touching the rim normal_make – ball goes in hitting the inside of the rim rim_bounce_make – ball goes in bouncing off the rim or backboard inside_rim_miss – ball hits the inside of the rim and bounces out outside_rim_miss – ball misses off the outside of the rim backboard – ball hits the backboard first airball – ball hits no part of the basket"

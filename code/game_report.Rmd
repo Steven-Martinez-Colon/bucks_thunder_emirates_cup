@@ -1,0 +1,296 @@
+---
+title: "Emirates Cup Final Analysis"
+author: "Steven Martinez"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Libraries
+
+```{r Loading Libraries, include=FALSE}
+load_libraries <- function(packages) {
+  # Check for missing packages
+  missing_packages <- packages[!(packages %in% installed.packages()[, "Package"])]
+  
+  # install missing packages
+  if(length(missing_packages) > 0) {
+    install.packages(missing_packages)
+  }
+  
+  # Load all packages
+  lapply(packages, library, character.only = TRUE)
+  
+  cat("All packages are loaded succesfully.\n")
+}
+
+
+# Loading necessary libraries
+load_libraries(c("tidyverse", "lubridate", "stats", "ggplot2", "corrplot", "stringr", "stringi", "class",
+                 "tidymodels", "modeldata", "themis", "vip", "baguette", "janitor", "rvest",
+                 "yardstick", "gsheet", "caret", "randomForest", "here", "tibble", "dplyr", "ISAR",
+                 "tidyr", "mgcv", "teamcolors", "baseballr", "Lahman", "remotes", "ggcorrplot", "broom",
+                 "readr", "glmnet", "xgboost", "Matrix", "Metrics", "reshape2", "DMwR2", "smotefamily",
+                 "highcharter", "jpeg", "grid", "gridExtra", "RCurl"))
+
+# Load only the necessary functions from 'car'
+library(car, exclude = "select")
+
+# Turning off warning messages
+options(warnings = 0)
+```
+
+## Loading Dataset
+
+```{r, include=FALSE}
+# Loading Dataset
+df <- read_csv("data_mil_okc_121724_shots.csv")
+```
+
+## Data Cleaning
+
+```{r}
+# Looking at the structure of the dataset
+str(df)
+
+# Changing some variables that are in character form into numeric
+df <- df %>%
+  mutate(across(c(loc_x_passer, loc_y_passer, rimDepth, rimLeftRight, arcAngle), as.numeric))
+```
+
+
+```{r, include=FALSE}
+# half court image
+courtImg.URL <- "https://thedatagame.com.au/wp-content/uploads/2016/03/nba_court.jpg"
+court <- rasterGrob(
+  readJPEG(getURLContent(courtImg.URL)),
+  width=unit(1,"npc"),
+  height=unit(1,"npc")
+  )
+```
+
+
+```{r}
+# Shot chart for 3 pointers made in the game by each team
+df %>% 
+  filter(fg3 == 1) %>% 
+  ggplot() +
+  
+  # Add court background
+  annotation_custom(court, xmin = -25, xmax = 25, ymin = 0, ymax = 47) +
+  
+  # Shooter positions
+  geom_point(aes(x = loc_x, y = loc_y), color = "blue", size = 2, alpha = 0.6) +
+  
+  # Passer positions
+  geom_point(aes(x = loc_x_passer, y = loc_y_passer), color = "green", size = 2, alpha = 0.6) +
+  
+  # Pass lines
+  geom_segment(aes(x = loc_x_passer, y = loc_y_passer, 
+                   xend = loc_x, yend = loc_y),
+               arrow = arrow(length = unit(0.12, "inches")),
+               color = "gray30", alpha = 0.4) +
+  
+  # Facet by team
+  facet_wrap(~ team_nba_off) +
+  
+  coord_fixed() +
+  labs(title = "Three Point FGs Made Shot Chart with Passes by Team",
+       subtitle = "Shooter (blue), Passer (green), Pass (gray)",
+       x = "Court X", y = "Court Y") +
+  theme_minimal()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+df %>%
+  group_by(team_nba_off) %>%
+  summarise(made = sum(fg == 1), missed = sum(fg == 0)) %>%
+  hchart("bar", hcaes(x = team_nba_off, y = made), name = "Made Shots")
+```
+
+
+
+
+
+
+```{r}
+interactive_df <- df %>%
+  filter(fg3 == 1) %>%
+  mutate(
+    label = paste0(
+      "<b>Shooter:</b> ", player_nba_shooter, "<br>",
+      "<b>Distance:</b> ", round(distance, 1), " ft<br>",
+      "<b>Contest Level:</b> ", contestLevel, "<br>",
+      "<b>Defender Distance:</b> ", round(closestDefDist, 1), " ft"
+    )
+  )
+
+
+
+highchart() %>%
+  hc_chart(type = "scatter") %>%
+  
+  hc_add_series(
+    data = interactive_df,
+    type = "scatter",
+    hcaes(x = loc_x, y = loc_y),
+    tooltip = list(pointFormat = "{point.label}"),
+    name = "Made Shots"
+  ) %>%
+  
+  hc_title(text = "Interactive Shot Chart: Made Shots Only") %>%
+  hc_xAxis(title = list(text = "Court X"), min = -25, max = 25) %>%
+  hc_yAxis(title = list(text = "Court Y"), min = 0, max = 47) %>%
+  hc_tooltip(useHTML = TRUE) %>%
+  hc_plotOptions(scatter = list(marker = list(radius = 4)))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+# Choose one team to display
+selected_team <- "OKC"  # Change this to any team in your dataset
+
+# Filter dataset
+team_data <- df %>%
+  filter(team_nba_off == selected_team, fg3 == 1) %>%
+  mutate(
+    tooltip = paste0(
+      "<b>Shooter:</b> ", player_nba_shooter, "<br>",
+      "<b>Distance:</b> ", round(distance, 1), " ft<br>",
+      "<b>Contest:</b> ", contestLevel, "<br>",
+      "<b>Defender:</b> ", round(closestDefDist, 1), " ft"
+    )
+  )
+
+# Load and rasterize court image
+court_url <- "https://thedatagame.com.au/wp-content/uploads/2016/03/nba_court.jpg"
+court_img <- rasterGrob(readJPEG(getURLContent(court_url)), 
+                        width = unit(1, "npc"), height = unit(1, "npc"))
+
+# Create ggplot with interactivity
+gg <- ggplot(team_data, aes(x = loc_x, y = loc_y)) +
+  annotation_custom(court_img, xmin = -25, xmax = 25, ymin = 0, ymax = 47) +
+  geom_point_interactive(aes(tooltip = tooltip), color = "blue", size = 2, alpha = 0.7) +
+  coord_fixed(xlim = c(-25, 25), ylim = c(0, 47)) +
+  labs(title = paste("Interactive Shot Chart -", selected_team)) +
+  theme_void()
+
+# Render as interactive plot
+girafe(ggobj = gg)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
