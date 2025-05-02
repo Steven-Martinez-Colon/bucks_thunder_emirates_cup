@@ -1,5 +1,5 @@
 ---
-title: "Emirates Cup Final Analysis"
+title: "2024 Emirates Cup Final Analysis"
 author: "Steven Martinez"
 date: "`r Sys.Date()`"
 output:
