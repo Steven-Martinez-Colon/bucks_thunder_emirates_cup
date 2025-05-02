@@ -24,7 +24,7 @@ load_libraries(c("tidyverse", "lubridate", "stats", "ggplot2", "corrplot", "stri
                  "yardstick", "gsheet", "caret", "randomForest", "here", "tibble", "dplyr", "ISAR",
                  "tidyr", "mgcv", "teamcolors", "baseballr", "Lahman", "remotes", "ggcorrplot", "broom", "readr",
                  "glmnet", "xgboost", "Matrix", "Metrics", "reshape2", "DMwR2", "smotefamily", "highcharter",
-                 "jpeg", "grid", "gridExtra", "RCurl"))
+                 "jpeg", "grid", "gridExtra", "RCurl", "gt"))
 
 # Load only the necessary functions from 'car'
 library(car, exclude = "select")
@@ -46,16 +46,257 @@ str(df)
 df <- df %>%
   mutate(across(c(loc_x_passer, loc_y_passer, rimDepth, rimLeftRight, arcAngle), as.numeric))
 
-# Creating a column for two-point field goals
-df <- df %>%
-  mutate(fg2 = ifelse(fg == 1 & fg3 == 0, 1, 0))
 
 # Changing binary variables to factors
 df <- df %>%
   mutate(across(where(~ is.numeric(.) && all(na.omit(.) %in% c(0, 1))),
                 as.factor))
 
-################## EDA ####################
+# Creating a column for 2-point makes and attempts
+df <- df %>%
+  mutate(
+    fga2 = ifelse(fga == 1 & fga3 == 0, 1, 0),
+    fg2 = ifelse(fg == 1 & fg3 == 0, 1, 0)
+    )
+
+################## Player Performance EDA ####################
+
+# Ensure key binary shot variables are numeric
+df <- df %>%
+  mutate(
+    fga = as.numeric(as.character(fga)),
+    fg = as.numeric(as.character(fg)),
+    fga3 = as.numeric(as.character(fga3)),
+    fg3 = as.numeric(as.character(fg3)),
+    fg2 = as.numeric(as.character(fg2)),
+    fga2 = as.numeric(as.character(fga2))
+  )
+
+# Player-level shooting summary
+player_summary <- df %>% 
+  group_by(player_nba_shooter, team_nba_off) %>% 
+  summarise(
+    
+    FGA = sum(fga, na.rm = TRUE),
+    FGM = sum(fg, na.rm = TRUE),
+    FG_percent = round(FGM / FGA, 3),
+    
+    FG2A = sum(fga2, na.rm = TRUE),
+    FG2M = sum(fg2, na.rm = TRUE),
+    FG2_percent = round(FG2M / FG2A, 3),
+    
+    FG3A = sum(fga3, na.rm = TRUE),
+    FG3M = sum(fg3, na.rm = TRUE),
+    FG3_percent = round(FG3M / FG3A, 3),
+    
+    eFG_percent = round((FGM + 0.5 * FG3M) / FGA, 3),
+    avg_qSQ = round(mean(qSQ, na.rm = TRUE), 3),
+    
+    Points = FG2M * 2 + FG3M * 3
+  ) %>%
+  arrange(desc(FGA))
+
+# Note: The points calculated for each player are by made field goals only.
+# It's not a representation of total points for the game since it is missing free throws made.
+
+# View Table
+print(player_summary)
+
+
+# Basic FGA vs FG% bar plot (color by team)
+ggplot(player_summary, aes(x = reorder(player_nba_shooter, FGA), y = FGA, fill = team_nba_off)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(
+    title = "Field Goal Attempts by Player",
+    x = "Player",
+    y = "FGA"
+  ) +
+  theme_minimal() +
+  scale_fill_manual(values = c("MIL" = "#00471B", "OKC" = "#007AC1"))  # Bucks green, Thunder blue
+
+
+# players by FGA for display
+player_summary <- player_summary %>%
+  mutate(player_nba_shooter = reorder(player_nba_shooter, FGA))
+
+# Define color by team
+bar_colors <- ifelse(player_summary$team_nba_off == "MIL", "#00471B", "#007AC1")
+
+# Create highchart
+highchart() %>%
+  hc_chart(type = "bar") %>%
+  hc_title(text = "Field Goal Attempts by Player") %>%
+  hc_xAxis(
+    categories = player_summary$player_nba_shooter,
+    title = list(text = "Player")
+  ) %>%
+  hc_yAxis(
+    title = list(text = "Field Goal Attempts")
+  ) %>%
+  hc_plotOptions(
+    bar = list(dataLabels = list(enabled = TRUE))
+  ) %>%
+  hc_tooltip(
+    pointFormat = paste(
+      "<b>Team:</b> {point.custom.team}<br>",
+      "<b>FG%:</b> {point.custom.fg_percent}<br>",
+      "<b>FG3%:</b> {point.custom.fg3_percent}<br>",
+      "<b>eFG%:</b> {point.custom.efg_percent}<br>",
+      "<b>Points:</b> {point.custom.points}<br>"
+    ),
+    useHTML = TRUE
+  ) %>%
+  hc_add_series(
+    data = lapply(1:nrow(player_summary), function(i) {
+      list(
+        y = player_summary$FGA[i],
+        color = bar_colors[i],
+        custom = list(
+          team = player_summary$team_nba_off[i],
+          fg_percent = player_summary$FG_percent[i],
+          fg3_percent = player_summary$FG3_percent[i],
+          efg_percent = player_summary$eFG_percent[i],
+          points = player_summary$Points[i]
+        )
+      )
+    }),
+    type = "bar",
+    showInLegend = FALSE
+  )
+
+#_________________ Star Player Performance _______________________-
+
+# Manually define your key players (adjust names if needed)
+stars <- c("Antetokounmpo, Giannis", "Lillard, Damian",
+           "Gilgeous-Alexander, Shai", "Williams, Jalen")
+
+# Filter and prepare table
+star_table <- df %>%
+  filter(player_nba_shooter %in% stars) %>%
+  group_by(player_nba_shooter, team_nba_off) %>%
+  summarise(
+    FGA = sum(fga, na.rm = TRUE),
+    FGM = sum(fg, na.rm = TRUE),
+    FG_percent = round(FGM / FGA, 3),
+    FG3A = sum(fga3, na.rm = TRUE),
+    FG3M = sum(fg3, na.rm = TRUE),
+    FG3_percent = round(FG3M / FG3A, 3),
+    eFG_percent = round((FGM + 0.5 * FG3M) / FGA, 3),
+    Points = sum(fg2 * 2 + fg3 * 3, na.rm = TRUE),
+    avg_qSQ = round(mean(qSQ, na.rm = TRUE), 3)
+  ) %>%
+  ungroup() %>%
+  rename(
+    Player = player_nba_shooter,
+    Team = team_nba_off,
+    `FG%` = FG_percent,
+    `3PA` = FG3A,
+    `3PM` = FG3M,
+    `3P%` = FG3_percent,
+    `eFG%` = eFG_percent,
+    `qSQ` = avg_qSQ
+  ) %>%
+  arrange(desc(Points))  # or sort however you'd like
+
+# Display table using gt
+star_table %>%
+  gt() %>%
+  tab_header(
+    title = md("**Star Player Comparison**"),
+    subtitle = "Shot performance metrics for Bucks and Thunder primary scorers"
+  ) %>%
+  fmt_percent(columns = c(`FG%`, `3P%`, `eFG%`), decimals = 1) %>%  # ← no qSQ here
+  fmt_number(columns = c(`qSQ`), decimals = 3) %>%  # ← format qSQ as a decimal
+  fmt_number(columns = c(FGA, FGM, `3PA`, Points), decimals = 0) %>%
+  cols_align(align = "center") %>%
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(columns = Player)
+  ) %>% 
+  tab_source_note(
+    source_note = md("*Point totals reflect only field goals made; free throws are not included.*")
+  )
+
+# ______________________ Supporting Players Performance _______________________
+
+# Supporting cast = everyone with 5+ FGA and not a star
+supporting_players <- df %>%
+  filter(!player_nba_shooter %in% c("Antetokounmpo, Giannis", "Lillard, Damian", 
+                                    "Gilgeous-Alexander, Shai", "Williams, Jalen")) %>%
+  group_by(player_nba_shooter, team_nba_off) %>%
+  summarise(
+    FGA = sum(fga, na.rm = TRUE),
+    FGM = sum(fg, na.rm = TRUE),
+    FG_percent = round(FGM / FGA, 3),
+    FG3A = sum(fga3, na.rm = TRUE),
+    FG3M = sum(fg3, na.rm = TRUE),
+    FG3_percent = round(FG3M / FG3A, 3),
+    eFG_percent = round((FGM + 0.5 * FG3M) / FGA, 3),
+    Points = sum(fg2 * 2 + fg3 * 3, na.rm = TRUE),
+    avg_qSQ = round(mean(qSQ, na.rm = TRUE), 3)
+  ) %>%
+  filter(FGA >= 5) %>%
+  ungroup() %>%
+  rename(
+    Player = player_nba_shooter,
+    Team = team_nba_off,
+    `FG%` = FG_percent,
+    `3PA` = FG3A,
+    `3PM` = FG3M,
+    `3P%` = FG3_percent,
+    `eFG%` = eFG_percent,
+    `qSQ` = avg_qSQ
+  ) %>%
+  arrange(desc(Points))
+
+
+supporting_players %>%
+  gt() %>%
+  tab_header(
+    title = md("**Supporting Cast Performance**"),
+    subtitle = "Non-star players with 5+ FGA / Points "
+  ) %>%
+  fmt_percent(columns = c(`FG%`, `3P%`, `eFG%`), decimals = 1) %>%
+  fmt_number(columns = c(`qSQ`), decimals = 3) %>%
+  fmt_number(columns = c(FGA, FGM, `3PA`, Points), decimals = 0) %>%
+  cols_align(align = "center") %>%
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_body(columns = Player)
+  ) %>% 
+  tab_source_note(
+    source_note = md("*Point totals reflect only field goals made; free throws are not included.*")
+  )
+
+
+
+
+
+
+
+
+
+print()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+################################################################################
 
 # Summary of Bucks team shots
 df %>% 
@@ -66,6 +307,30 @@ df %>%
 df %>% 
   filter(team_nba_off == "OKC") %>% 
   summary(df)
+
+df %>% 
+  group_by(region) %>% 
+  filter(player_nba_shooter == "Portis, Bobby") %>% 
+  summarise(
+    distance = mean(distance)
+  )
+
+df %>% 
+  filter(player_nba_shooter == "Portis, Bobby") %>% 
+  count(region)
+
+df %>% 
+  group_by(region) %>% 
+  filter(player_nba_shooter == "Lopez, Brook") %>% 
+  summarise(
+    distance = mean(distance)
+  )
+
+df %>% 
+  filter(player_nba_shooter == "Lopez, Brook") %>% 
+  count(region)
+
+
 
 # Calculating field goal average by each team
 fg_avg <- df %>%
@@ -279,8 +544,7 @@ df %>%
   facet_wrap(~ team_nba_off) +
   
   coord_fixed() +
-  labs(title = "Three Point FGs Made Shot Chart with Passes by Team",
-       subtitle = "Shooter (blue), Passer (green), Pass (gray)",
+  labs(title = "Three Point FGs Made By Each Team",
        x = "Court X", y = "Court Y") +
   theme_minimal()
 
@@ -313,7 +577,6 @@ df %>%
        subtitle = "Shooter (blue), Passer (green), Pass (gray)",
        x = "Court X", y = "Court Y") +
   theme_minimal()
-
 
 
 
